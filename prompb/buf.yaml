@@ -17,5 +17,4 @@ lint:
       - remote.proto
       - types.proto
       - io/prometheus/client/metrics.proto
-deps:
-  - buf.build/gogo/protobuf
+
