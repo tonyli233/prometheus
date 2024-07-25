@@ -35,7 +35,7 @@ func (m ChunkedSeries) ToLabels(b *labels.ScratchBuilder, _ []string) labels.Lab
 	return labelProtosToLabels(b, m.GetLabels())
 }
 
-func labelProtosToLabels(b *labels.ScratchBuilder, labelPairs []Label) labels.Labels {
+func labelProtosToLabels(b *labels.ScratchBuilder, labelPairs []*Label) labels.Labels {
 	b.Reset()
 	for _, l := range labelPairs {
 		b.Add(l.Name, l.Value)
@@ -46,10 +46,10 @@ func labelProtosToLabels(b *labels.ScratchBuilder, labelPairs []Label) labels.La
 
 // FromLabels transforms labels into prompb labels. The buffer slice
 // will be used to avoid allocations if it is big enough to store the labels.
-func FromLabels(lbls labels.Labels, buf []Label) []Label {
+func FromLabels(lbls labels.Labels, buf []*Label) []*Label {
 	result := buf[:0]
 	lbls.Range(func(l labels.Label) {
-		result = append(result, Label{
+		result = append(result, &Label{
 			Name:  l.Name,
 			Value: l.Value,
 		})
@@ -126,7 +126,7 @@ func (h Histogram) ToFloatHistogram() *histogram.FloatHistogram {
 	}
 }
 
-func spansProtoToSpans(s []BucketSpan) []histogram.Span {
+func spansProtoToSpans(s []*BucketSpan) []histogram.Span {
 	spans := make([]histogram.Span, len(s))
 	for i := 0; i < len(s); i++ {
 		spans[i] = histogram.Span{Offset: s[i].Offset, Length: s[i].Length}
@@ -146,8 +146,8 @@ func deltasToCounts(deltas []int64) []float64 {
 }
 
 // FromIntHistogram returns remote Histogram from the integer Histogram.
-func FromIntHistogram(timestamp int64, h *histogram.Histogram) Histogram {
-	return Histogram{
+func FromIntHistogram(timestamp int64, h *histogram.Histogram) *Histogram {
+	return &Histogram{
 		Count:          &Histogram_CountInt{CountInt: h.Count},
 		Sum:            h.Sum,
 		Schema:         h.Schema,
@@ -163,8 +163,8 @@ func FromIntHistogram(timestamp int64, h *histogram.Histogram) Histogram {
 }
 
 // FromFloatHistogram returns remote Histogram from the float Histogram.
-func FromFloatHistogram(timestamp int64, fh *histogram.FloatHistogram) Histogram {
-	return Histogram{
+func FromFloatHistogram(timestamp int64, fh *histogram.FloatHistogram) *Histogram {
+	return &Histogram{
 		Count:          &Histogram_CountFloat{CountFloat: fh.Count},
 		Sum:            fh.Sum,
 		Schema:         fh.Schema,
@@ -179,10 +179,10 @@ func FromFloatHistogram(timestamp int64, fh *histogram.FloatHistogram) Histogram
 	}
 }
 
-func spansToSpansProto(s []histogram.Span) []BucketSpan {
-	spans := make([]BucketSpan, len(s))
+func spansToSpansProto(s []histogram.Span) []*BucketSpan {
+	spans := make([]*BucketSpan, len(s))
 	for i := 0; i < len(s); i++ {
-		spans[i] = BucketSpan{Offset: s[i].Offset, Length: s[i].Length}
+		spans[i] = &BucketSpan{Offset: s[i].Offset, Length: s[i].Length}
 	}
 
 	return spans
