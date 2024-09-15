@@ -34,4 +34,3 @@ plugins:
       - pool=github.com/prometheus/prometheus/prompb/io/prometheus/write/v2.Chunk_Zstd
       - pool=github.com/prometheus/prometheus/prompb/io/prometheus/write/v2.Chunk_Snappy
       - pool=github.com/prometheus/prometheus/prompb/io/prometheus/write/v2.Chunk_Lz4 
-      

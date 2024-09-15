@@ -19,6 +19,7 @@ package prometheusremotewrite
 import (
 	"context"
 	"fmt"
+	"google.golang.org/protobuf/proto"
 	"testing"
 	"time"
 
@@ -256,7 +257,11 @@ func TestPrometheusConverter_addSumNumberDataPoints(t *testing.T) {
 			)
 			fmt.Println(tt.want())
 			fmt.Println(converter.unique)
-			assert.Equal(t, tt.want(), converter.unique)
+			expect := tt.want()
+			for k, _ := range expect {
+				assert.Equal(t, expect[k], converter.unique[k])
+				assert.True(t, proto.Equal(expect[k], converter.unique[k]))
+			}
 			assert.Empty(t, converter.conflicts)
 		})
 	}

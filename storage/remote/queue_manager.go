@@ -1553,8 +1553,8 @@ func (s *shards) runShard(ctx context.Context, shardID int, queue *queue) {
 	}
 	pendingDataV2 := make([]*writev2.TimeSeries, maxCount)
 	for i := range pendingDataV2 {
-		pendingDataV2[i] = writev2.TimeSeriesFromVTPool()
-		pendingDataV2[i].Samples = []*writev2.Sample{writev2.SampleFromVTPool()}
+		pendingDataV2[i] = &writev2.TimeSeries{}
+		pendingDataV2[i].Samples = []*writev2.Sample{{Value: 1, Timestamp: 0}}
 	}
 
 	timer := time.NewTimer(time.Duration(s.qm.cfg.BatchSendDeadline))
@@ -1952,30 +1952,14 @@ func (s *shards) sendV2SamplesWithBackoff(ctx context.Context, samples []*writev
 func populateV2TimeSeries(symbolTable *writev2.SymbolsTable, batch []timeSeries, pendingData []*writev2.TimeSeries, sendExemplars, sendNativeHistograms bool) (int, int, int, int) {
 	var nPendingSamples, nPendingExemplars, nPendingHistograms, nPendingMetadata int
 	for nPending, d := range batch {
-		for _, sample := range pendingData[nPending].Samples {
-			sample.ReturnToVTPool()
-		}
-		pendingData[nPending].Samples = pendingData[nPending].Samples[:0]
 		// todo: should we also safeguard against empty metadata here?
 		if d.metadata != nil {
-			pendingData[nPending].Metadata = &writev2.Metadata{}
+			pendingData[nPending].Metadata.ReturnToVTPool()
+			pendingData[nPending].Metadata = writev2.MetadataFromVTPool()
 			pendingData[nPending].Metadata.Type = writev2.FromMetadataType(d.metadata.Type)
 			pendingData[nPending].Metadata.HelpRef = symbolTable.Symbolize(d.metadata.Help)
 			pendingData[nPending].Metadata.HelpRef = symbolTable.Symbolize(d.metadata.Unit)
 			nPendingMetadata++
-		}
-
-		if sendExemplars {
-			for _, exemplar := range pendingData[nPending].Exemplars {
-				exemplar.ReturnToVTPool()
-			}
-			pendingData[nPending].Exemplars = pendingData[nPending].Exemplars[:0]
-		}
-		if sendNativeHistograms {
-			for _, histogram := range pendingData[nPending].Histograms {
-				histogram.ReturnToVTPool()
-			}
-			pendingData[nPending].Histograms = pendingData[nPending].Histograms[:0]
 		}
 
 		// Number of pending samples is limited by the fact that sendSamples (via sendSamplesWithBackoff)
@@ -1984,10 +1968,10 @@ func populateV2TimeSeries(symbolTable *writev2.SymbolsTable, batch []timeSeries,
 		pendingData[nPending].LabelsRefs = symbolTable.SymbolizeLabels(d.seriesLabels, pendingData[nPending].LabelsRefs)
 		switch d.sType {
 		case tSample:
-			sample := writev2.SampleFromVTPool()
-			sample.Value = d.value
-			sample.Timestamp = d.timestamp
-			pendingData[nPending].Samples = append(pendingData[nPending].Samples, sample)
+			// we don't do any optimization to send multiple samples for the same timeseries
+			// in a single proto time series, so this is safe at the moment
+			pendingData[nPending].Samples[0].Value = d.value
+			pendingData[nPending].Samples[0].Timestamp = d.timestamp
 			nPendingSamples++
 		case tExemplar:
 			exemplar := writev2.ExemplarFromVTPool()
@@ -2223,7 +2207,10 @@ func buildV2WriteRequest(logger log.Logger, samples []*writev2.TimeSeries, label
 		pBuf = &[]byte{} // For convenience in tests. Not efficient.
 	}
 
-	data, err := proto.Marshal(req)
+	if len(*pBuf) < req.SizeVT() {
+		*pBuf = make([]byte, req.SizeVT())
+	}
+	size, err := req.MarshalToVT(*pBuf)
 	if err != nil {
 		return nil, highest, lowest, err
 	}
@@ -2233,7 +2220,6 @@ func buildV2WriteRequest(logger log.Logger, samples []*writev2.TimeSeries, label
 	if err != nil {
 		return nil, highest, lowest, err
 	}
-	*pBuf = data
 
 	// snappy uses len() to see if it needs to allocate a new slice. Make the
 	// buffer as long as possible.
@@ -2243,7 +2229,7 @@ func buildV2WriteRequest(logger log.Logger, samples []*writev2.TimeSeries, label
 		buf = &[]byte{}
 	}
 
-	compressed, err = compressPayload(buf, data, enc)
+	compressed, err = compressPayload(buf, (*pBuf)[:size], enc)
 	if err != nil {
 		return nil, highest, lowest, err
 	}
