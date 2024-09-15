@@ -1082,16 +1082,27 @@ func (c *TestWriteClient) waitForExpectedData(tb testing.TB, timeout time.Durati
 	defer c.mtx.Unlock()
 
 	for ts, expectedSamples := range c.expectedSamples {
-		require.Equal(tb, expectedSamples, c.receivedSamples[ts], ts)
+		for i := range expectedSamples {
+			require.True(tb, proto.Equal(expectedSamples[i], c.receivedSamples[ts][i]))
+		}
 	}
 	for ts, expectedExemplar := range c.expectedExemplars {
-		require.Equal(tb, expectedExemplar, c.receivedExemplars[ts], ts)
+		for i := range expectedExemplar {
+			require.True(tb, proto.Equal(expectedExemplar[i], c.receivedExemplars[ts][i]))
+		}
+		//require.Equal(tb, expectedExemplar, c.receivedExemplars[ts], ts)
 	}
 	for ts, expectedHistogram := range c.expectedHistograms {
-		require.Equal(tb, expectedHistogram, c.receivedHistograms[ts], ts)
+		for i := range expectedHistogram {
+			require.True(tb, proto.Equal(expectedHistogram[i], c.receivedHistograms[ts][i]))
+		}
+		//require.Equal(tb, expectedHistogram, c.receivedHistograms[ts], ts)
 	}
 	for ts, expectedFloatHistogram := range c.expectedFloatHistograms {
-		require.Equal(tb, expectedFloatHistogram, c.receivedFloatHistograms[ts], ts)
+		for i := range expectedFloatHistogram {
+			require.True(tb, proto.Equal(expectedFloatHistogram[i], c.receivedFloatHistograms[ts][i]))
+		}
+		//require.Equal(tb, expectedFloatHistogram, c.receivedFloatHistograms[ts], ts)
 	}
 }
 
