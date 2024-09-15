@@ -16,6 +16,12 @@
 syntax = "proto3";
 package io.prometheus.write.v2;
 
+// TODO (tonyli233): Uncomment the import statement after the package is available on buf.build.
+// https://github.com/bufbuild/modules/issues/692
+// Also, we can remove all the options for buf.build/community/planetscale-vtprotobuf:v0.6.0 in buf.gen.yaml.
+//
+// import "github.com/planetscale/vtprotobuf/vtproto/ext.proto";
+
 option go_package = "writev2";
 
 // Request represents a request to write the given timeseries to a remote destination.
@@ -35,6 +41,13 @@ message Request {
   // be sympathetic to adopters with mistaken implementations and have deterministic error (empty
   // message if you use the wrong proto schema).
   reserved 1 to 3;
+
+  // TODO (tonyli233): Uncomment the extended message option to enable vtproto pooling after
+  // vtproto package is availble on buf.build. Similar to all other messages in this file
+  // https://github.com/bufbuild/modules/issues/692
+  //
+  //  option (vtproto.mempool) = true; // Enable memory pooling
+
 
   // symbols contains a de-duplicated array of string elements used for various
   // items in a Request message, like labels and metadata items. For the sender's convenience
