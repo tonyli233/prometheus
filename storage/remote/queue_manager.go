@@ -1961,6 +1961,18 @@ func populateV2TimeSeries(symbolTable *writev2.SymbolsTable, batch []timeSeries,
 			pendingData[nPending].Metadata.HelpRef = symbolTable.Symbolize(d.metadata.Unit)
 			nPendingMetadata++
 		}
+		if sendExemplars {
+			for _, exemplar := range pendingData[nPending].Exemplars {
+				exemplar.ReturnToVTPool()
+			}
+			pendingData[nPending].Exemplars = pendingData[nPending].Exemplars[:0]
+		}
+		if sendNativeHistograms {
+			for _, histogram := range pendingData[nPending].Histograms {
+				histogram.ReturnToVTPool()
+			}
+			pendingData[nPending].Histograms = pendingData[nPending].Histograms[:0]
+		}
 
 		// Number of pending samples is limited by the fact that sendSamples (via sendSamplesWithBackoff)
 		// retries endlessly, so once we reach max samples, if we can never send to the endpoint we'll
