@@ -24,7 +24,6 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
@@ -557,14 +556,14 @@ func (t *QueueManager) AppendWatcherMetadata(ctx context.Context, metadata []scr
 		})
 	}
 
-	pBuf := proto.NewBuffer(nil)
+	var pBuf []byte
 	numSends := int(math.Ceil(float64(len(metadata)) / float64(t.mcfg.MaxSamplesPerSend)))
 	for i := 0; i < numSends; i++ {
 		last := (i + 1) * t.mcfg.MaxSamplesPerSend
 		if last > len(metadata) {
 			last = len(metadata)
 		}
-		err := t.sendMetadataWithBackoff(ctx, mm[i*t.mcfg.MaxSamplesPerSend:last], pBuf)
+		err := t.sendMetadataWithBackoff(ctx, mm[i*t.mcfg.MaxSamplesPerSend:last], &pBuf)
 		if err != nil {
 			t.metrics.failedMetadataTotal.Add(float64(last - (i * t.mcfg.MaxSamplesPerSend)))
 			level.Error(t.logger).Log("msg", "non-recoverable error while sending metadata", "count", last-(i*t.mcfg.MaxSamplesPerSend), "err", err)
@@ -572,7 +571,7 @@ func (t *QueueManager) AppendWatcherMetadata(ctx context.Context, metadata []scr
 	}
 }
 
-func (t *QueueManager) sendMetadataWithBackoff(ctx context.Context, metadata []*prompb.MetricMetadata, pBuf *proto.Buffer) error {
+func (t *QueueManager) sendMetadataWithBackoff(ctx context.Context, metadata []*prompb.MetricMetadata, pBuf *[]byte) error {
 	// Build the WriteRequest with no samples (v1 flow).
 	req, _, _, err := buildWriteRequest(t.logger, nil, metadata, pBuf, nil, nil, t.enc)
 	if err != nil {
@@ -1532,7 +1531,6 @@ func (s *shards) runShard(ctx context.Context, shardID int, queue *queue) {
 	var (
 		maxCount = s.qm.cfg.MaxSamplesPerSend
 
-		pBuf    = proto.NewBuffer(nil)
 		pBufRaw []byte
 		buf     []byte
 	)
@@ -1577,7 +1575,7 @@ func (s *shards) runShard(ctx context.Context, shardID int, queue *queue) {
 				level.Debug(s.qm.logger).Log("msg", "runShard timer ticked, sending buffered data", "samples", nPendingSamples,
 					"exemplars", nPendingExemplars, "shard", shardNum, "histograms", nPendingHistograms)
 			}
-			_ = s.sendSamples(ctx, pendingData[:n], nPendingSamples, nPendingExemplars, nPendingHistograms, pBuf, &buf, enc)
+			_ = s.sendSamples(ctx, pendingData[:n], nPendingSamples, nPendingExemplars, nPendingHistograms, &pBufRaw, &buf, enc)
 		case config.RemoteWriteProtoMsgV2:
 			nPendingSamples, nPendingExemplars, nPendingHistograms, nPendingMetadata := populateV2TimeSeries(&symbolTable, batch, pendingDataV2, s.qm.sendExemplars, s.qm.sendNativeHistograms)
 			n := nPendingSamples + nPendingExemplars + nPendingHistograms
@@ -1632,12 +1630,29 @@ func (s *shards) runShard(ctx context.Context, shardID int, queue *queue) {
 func populateTimeSeries(batch []timeSeries, pendingData []*prompb.TimeSeries, sendExemplars, sendNativeHistograms bool) (int, int, int) {
 	var nPendingSamples, nPendingExemplars, nPendingHistograms int
 	for nPending, d := range batch {
-		pendingData[nPending].Samples = pendingData[nPending].Samples[:0]
 		if sendExemplars {
+			for _, exemplar := range pendingData[nPending].Exemplars {
+				for _, lbl := range exemplar.Labels {
+					lbl.ReturnToVTPool()
+				}
+				exemplar.ReturnToVTPool()
+			}
 			pendingData[nPending].Exemplars = pendingData[nPending].Exemplars[:0]
 		}
 		if sendNativeHistograms {
+			for _, histogram := range pendingData[nPending].Histograms {
+				for _, ps := range histogram.PositiveSpans {
+					ps.ReturnToVTPool()
+				}
+				for _, ns := range histogram.NegativeSpans {
+					ns.ReturnToVTPool()
+				}
+				histogram.ReturnToVTPool()
+			}
 			pendingData[nPending].Histograms = pendingData[nPending].Histograms[:0]
+		}
+		for _, lbl := range pendingData[nPending].Labels {
+			lbl.ReturnToVTPool()
 		}
 
 		// Number of pending samples is limited by the fact that sendSamples (via sendSamplesWithBackoff)
@@ -1647,17 +1662,15 @@ func populateTimeSeries(batch []timeSeries, pendingData []*prompb.TimeSeries, se
 
 		switch d.sType {
 		case tSample:
-			pendingData[nPending].Samples = append(pendingData[nPending].Samples, &prompb.Sample{
-				Value:     d.value,
-				Timestamp: d.timestamp,
-			})
+			pendingData[nPending].Samples[0].Value = d.value
+			pendingData[nPending].Samples[0].Timestamp = d.timestamp
 			nPendingSamples++
 		case tExemplar:
-			pendingData[nPending].Exemplars = append(pendingData[nPending].Exemplars, &prompb.Exemplar{
-				Labels:    prompb.FromLabels(d.exemplarLabels, nil),
-				Value:     d.value,
-				Timestamp: d.timestamp,
-			})
+			exemplar := prompb.ExemplarFromVTPool()
+			exemplar.Value = d.value
+			exemplar.Labels = prompb.FromLabels(d.exemplarLabels, nil)
+			exemplar.Timestamp = d.timestamp
+			pendingData[nPendingSamples].Exemplars = append(pendingData[nPendingSamples].Exemplars, exemplar)
 			nPendingExemplars++
 		case tHistogram:
 			pendingData[nPending].Histograms = append(pendingData[nPending].Histograms, prompb.FromIntHistogram(d.timestamp, d.histogram))
@@ -1670,7 +1683,7 @@ func populateTimeSeries(batch []timeSeries, pendingData []*prompb.TimeSeries, se
 	return nPendingSamples, nPendingExemplars, nPendingHistograms
 }
 
-func (s *shards) sendSamples(ctx context.Context, samples []*prompb.TimeSeries, sampleCount, exemplarCount, histogramCount int, pBuf *proto.Buffer, buf *[]byte, enc Compression) error {
+func (s *shards) sendSamples(ctx context.Context, samples []*prompb.TimeSeries, sampleCount, exemplarCount, histogramCount int, pBuf, buf *[]byte, enc Compression) error {
 	begin := time.Now()
 	rs, err := s.sendSamplesWithBackoff(ctx, samples, sampleCount, exemplarCount, histogramCount, 0, pBuf, buf, enc)
 	s.updateMetrics(ctx, err, sampleCount, exemplarCount, histogramCount, 0, rs, time.Since(begin))
@@ -1723,7 +1736,7 @@ func (s *shards) updateMetrics(_ context.Context, err error, sampleCount, exempl
 }
 
 // sendSamples to the remote storage with backoff for recoverable errors.
-func (s *shards) sendSamplesWithBackoff(ctx context.Context, samples []*prompb.TimeSeries, sampleCount, exemplarCount, histogramCount, metadataCount int, pBuf *proto.Buffer, buf *[]byte, enc Compression) (WriteResponseStats, error) {
+func (s *shards) sendSamplesWithBackoff(ctx context.Context, samples []*prompb.TimeSeries, sampleCount, exemplarCount, histogramCount, metadataCount int, pBuf, buf *[]byte, enc Compression) (WriteResponseStats, error) {
 	// Build the WriteRequest with no metadata.
 	req, highest, lowest, err := buildWriteRequest(s.qm.logger, samples, nil, pBuf, buf, nil, enc)
 	s.qm.buildRequestLimitTimestamp.Store(lowest)
@@ -1969,6 +1982,12 @@ func populateV2TimeSeries(symbolTable *writev2.SymbolsTable, batch []timeSeries,
 		}
 		if sendNativeHistograms {
 			for _, histogram := range pendingData[nPending].Histograms {
+				for _, ps := range histogram.PositiveSpans {
+					ps.ReturnToVTPool()
+				}
+				for _, ns := range histogram.NegativeSpans {
+					ns.ReturnToVTPool()
+				}
 				histogram.ReturnToVTPool()
 			}
 			pendingData[nPending].Histograms = pendingData[nPending].Histograms[:0]
@@ -2152,18 +2171,18 @@ func buildTimeSeries(timeSeries []*prompb.TimeSeries, filter func(*prompb.TimeSe
 func compressPayload(tmpbuf *[]byte, inp []byte, enc Compression) (compressed []byte, _ error) {
 	switch enc {
 	case SnappyBlockCompression:
-		compressed = snappy.Encode(*tmpbuf, inp)
 		if n := snappy.MaxEncodedLen(len(inp)); n > len(*tmpbuf) {
 			// grow the buffer for the next time
 			*tmpbuf = make([]byte, n)
 		}
+		compressed = snappy.Encode(*tmpbuf, inp)
 		return compressed, nil
 	default:
 		return compressed, fmt.Errorf("Unknown compression scheme [%v]", enc)
 	}
 }
 
-func buildWriteRequest(logger log.Logger, timeSeries []*prompb.TimeSeries, metadata []*prompb.MetricMetadata, pBuf *proto.Buffer, buf *[]byte, filter func(*prompb.TimeSeries) bool, enc Compression) (compressed []byte, highest, lowest int64, _ error) {
+func buildWriteRequest(logger log.Logger, timeSeries []*prompb.TimeSeries, metadata []*prompb.MetricMetadata, pBuf, buf *[]byte, filter func(*prompb.TimeSeries) bool, enc Compression) (compressed []byte, highest, lowest int64, _ error) {
 	highest, lowest, timeSeries,
 		droppedSamples, droppedExemplars, droppedHistograms := buildTimeSeries(timeSeries, filter)
 
@@ -2171,17 +2190,20 @@ func buildWriteRequest(logger log.Logger, timeSeries []*prompb.TimeSeries, metad
 		level.Debug(logger).Log("msg", "dropped data due to their age", "droppedSamples", droppedSamples, "droppedExemplars", droppedExemplars, "droppedHistograms", droppedHistograms)
 	}
 
-	req := &prompb.WriteRequest{
-		Timeseries: timeSeries,
-		Metadata:   metadata,
+	req := prompb.WriteRequestFromVTPool()
+	req.Timeseries = timeSeries
+	req.Metadata = metadata
+	if pBuf == nil {
+		pBuf = &[]byte{} // For convenience in tests. Not efficient.
 	}
 
-	if pBuf == nil {
-		pBuf = proto.NewBuffer(nil) // For convenience in tests. Not efficient.
-	} else {
-		pBuf.Reset()
+	if len(*pBuf) < req.SizeVT() {
+		*pBuf = make([]byte, req.SizeVT())
 	}
-	err := pBuf.Marshal(req)
+	size, err := req.MarshalToVT(*pBuf)
+	req.Metadata = []*prompb.MetricMetadata{}
+	req.Timeseries = []*prompb.TimeSeries{}
+	req.ReturnToVTPool()
 	if err != nil {
 		return nil, highest, lowest, err
 	}
@@ -2194,7 +2216,7 @@ func buildWriteRequest(logger log.Logger, timeSeries []*prompb.TimeSeries, metad
 		buf = &[]byte{}
 	}
 
-	compressed, err = compressPayload(buf, pBuf.Bytes(), enc)
+	compressed, err = compressPayload(buf, (*pBuf)[:size], enc)
 	if err != nil {
 		return nil, highest, lowest, err
 	}
@@ -2208,10 +2230,6 @@ func buildV2WriteRequest(logger log.Logger, samples []*writev2.TimeSeries, label
 		level.Debug(logger).Log("msg", "dropped data due to their age", "droppedSamples", droppedSamples, "droppedExemplars", droppedExemplars, "droppedHistograms", droppedHistograms)
 	}
 
-	//req := &writev2.Request{
-	//	Symbols:    labels,
-	//	Timeseries: timeSeries,
-	//}
 	req := writev2.RequestFromVTPool()
 	req.Symbols = labels
 	req.Timeseries = timeSeries
@@ -2223,9 +2241,6 @@ func buildV2WriteRequest(logger log.Logger, samples []*writev2.TimeSeries, label
 		*pBuf = make([]byte, req.SizeVT())
 	}
 	size, err := req.MarshalToVT(*pBuf)
-	if err != nil {
-		return nil, highest, lowest, err
-	}
 	req.Symbols = []string{}
 	req.Timeseries = []*writev2.TimeSeries{}
 	req.ReturnToVTPool()

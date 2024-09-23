@@ -261,7 +261,7 @@ func (m *BucketSpan) CloneVT() *BucketSpan {
 	if m == nil {
 		return (*BucketSpan)(nil)
 	}
-	r := new(BucketSpan)
+	r := BucketSpanFromVTPool()
 	r.Offset = m.Offset
 	r.Length = m.Length
 	if len(m.unknownFields) > 0 {
@@ -2016,13 +2016,13 @@ var vtprotoPool_Histogram = sync.Pool{
 func (m *Histogram) ResetVT() {
 	if m != nil {
 		for _, mm := range m.NegativeSpans {
-			mm.Reset()
+			mm.ResetVT()
 		}
 		f0 := m.NegativeSpans[:0]
 		f1 := m.NegativeDeltas[:0]
 		f2 := m.NegativeCounts[:0]
 		for _, mm := range m.PositiveSpans {
-			mm.Reset()
+			mm.ResetVT()
 		}
 		f3 := m.PositiveSpans[:0]
 		f4 := m.PositiveDeltas[:0]
@@ -2046,6 +2046,27 @@ func (m *Histogram) ReturnToVTPool() {
 }
 func HistogramFromVTPool() *Histogram {
 	return vtprotoPool_Histogram.Get().(*Histogram)
+}
+
+var vtprotoPool_BucketSpan = sync.Pool{
+	New: func() interface{} {
+		return &BucketSpan{}
+	},
+}
+
+func (m *BucketSpan) ResetVT() {
+	if m != nil {
+		m.Reset()
+	}
+}
+func (m *BucketSpan) ReturnToVTPool() {
+	if m != nil {
+		m.ResetVT()
+		vtprotoPool_BucketSpan.Put(m)
+	}
+}
+func BucketSpanFromVTPool() *BucketSpan {
+	return vtprotoPool_BucketSpan.Get().(*BucketSpan)
 }
 func (m *Request) SizeVT() (n int) {
 	if m == nil {

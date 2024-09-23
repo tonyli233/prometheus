@@ -205,7 +205,10 @@ func FromFloatHistogram(timestamp int64, fh *histogram.FloatHistogram) *Histogra
 func spansToSpansProto(s []histogram.Span) []*BucketSpan {
 	spans := make([]*BucketSpan, len(s))
 	for i := 0; i < len(s); i++ {
-		spans[i] = &BucketSpan{Offset: s[i].Offset, Length: s[i].Length}
+		b := BucketSpanFromVTPool()
+		b.Offset = s[i].Offset
+		b.Length = s[i].Length
+		spans[i] = b
 	}
 
 	return spans

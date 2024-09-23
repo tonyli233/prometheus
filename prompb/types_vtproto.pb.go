@@ -12,6 +12,7 @@ import (
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	io "io"
 	math "math"
+	sync "sync"
 	unsafe "unsafe"
 )
 
@@ -26,7 +27,7 @@ func (m *MetricMetadata) CloneVT() *MetricMetadata {
 	if m == nil {
 		return (*MetricMetadata)(nil)
 	}
-	r := new(MetricMetadata)
+	r := MetricMetadataFromVTPool()
 	r.Type = m.Type
 	r.MetricFamilyName = m.MetricFamilyName
 	r.Help = m.Help
@@ -46,7 +47,7 @@ func (m *Sample) CloneVT() *Sample {
 	if m == nil {
 		return (*Sample)(nil)
 	}
-	r := new(Sample)
+	r := SampleFromVTPool()
 	r.Value = m.Value
 	r.Timestamp = m.Timestamp
 	if len(m.unknownFields) > 0 {
@@ -64,7 +65,7 @@ func (m *Exemplar) CloneVT() *Exemplar {
 	if m == nil {
 		return (*Exemplar)(nil)
 	}
-	r := new(Exemplar)
+	r := ExemplarFromVTPool()
 	r.Value = m.Value
 	r.Timestamp = m.Timestamp
 	if rhs := m.Labels; rhs != nil {
@@ -89,7 +90,7 @@ func (m *Histogram) CloneVT() *Histogram {
 	if m == nil {
 		return (*Histogram)(nil)
 	}
-	r := new(Histogram)
+	r := HistogramFromVTPool()
 	r.Sum = m.Sum
 	r.Schema = m.Schema
 	r.ZeroThreshold = m.ZeroThreshold
@@ -186,7 +187,7 @@ func (m *BucketSpan) CloneVT() *BucketSpan {
 	if m == nil {
 		return (*BucketSpan)(nil)
 	}
-	r := new(BucketSpan)
+	r := BucketSpanFromVTPool()
 	r.Offset = m.Offset
 	r.Length = m.Length
 	if len(m.unknownFields) > 0 {
@@ -204,7 +205,7 @@ func (m *TimeSeries) CloneVT() *TimeSeries {
 	if m == nil {
 		return (*TimeSeries)(nil)
 	}
-	r := new(TimeSeries)
+	r := TimeSeriesFromVTPool()
 	if rhs := m.Labels; rhs != nil {
 		tmpContainer := make([]*Label, len(rhs))
 		for k, v := range rhs {
@@ -248,7 +249,7 @@ func (m *Label) CloneVT() *Label {
 	if m == nil {
 		return (*Label)(nil)
 	}
-	r := new(Label)
+	r := LabelFromVTPool()
 	r.Name = m.Name
 	r.Value = m.Value
 	if len(m.unknownFields) > 0 {
@@ -2646,6 +2647,195 @@ func (m *ChunkedSeries) MarshalToSizedBufferVTStrict(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+var vtprotoPool_MetricMetadata = sync.Pool{
+	New: func() interface{} {
+		return &MetricMetadata{}
+	},
+}
+
+func (m *MetricMetadata) ResetVT() {
+	if m != nil {
+		m.Reset()
+	}
+}
+func (m *MetricMetadata) ReturnToVTPool() {
+	if m != nil {
+		m.ResetVT()
+		vtprotoPool_MetricMetadata.Put(m)
+	}
+}
+func MetricMetadataFromVTPool() *MetricMetadata {
+	return vtprotoPool_MetricMetadata.Get().(*MetricMetadata)
+}
+
+var vtprotoPool_Sample = sync.Pool{
+	New: func() interface{} {
+		return &Sample{}
+	},
+}
+
+func (m *Sample) ResetVT() {
+	if m != nil {
+		m.Reset()
+	}
+}
+func (m *Sample) ReturnToVTPool() {
+	if m != nil {
+		m.ResetVT()
+		vtprotoPool_Sample.Put(m)
+	}
+}
+func SampleFromVTPool() *Sample {
+	return vtprotoPool_Sample.Get().(*Sample)
+}
+
+var vtprotoPool_Exemplar = sync.Pool{
+	New: func() interface{} {
+		return &Exemplar{}
+	},
+}
+
+func (m *Exemplar) ResetVT() {
+	if m != nil {
+		for _, mm := range m.Labels {
+			mm.ResetVT()
+		}
+		f0 := m.Labels[:0]
+		m.Reset()
+		m.Labels = f0
+	}
+}
+func (m *Exemplar) ReturnToVTPool() {
+	if m != nil {
+		m.ResetVT()
+		vtprotoPool_Exemplar.Put(m)
+	}
+}
+func ExemplarFromVTPool() *Exemplar {
+	return vtprotoPool_Exemplar.Get().(*Exemplar)
+}
+
+var vtprotoPool_Histogram = sync.Pool{
+	New: func() interface{} {
+		return &Histogram{}
+	},
+}
+
+func (m *Histogram) ResetVT() {
+	if m != nil {
+		for _, mm := range m.NegativeSpans {
+			mm.ResetVT()
+		}
+		f0 := m.NegativeSpans[:0]
+		f1 := m.NegativeDeltas[:0]
+		f2 := m.NegativeCounts[:0]
+		for _, mm := range m.PositiveSpans {
+			mm.ResetVT()
+		}
+		f3 := m.PositiveSpans[:0]
+		f4 := m.PositiveDeltas[:0]
+		f5 := m.PositiveCounts[:0]
+		m.Reset()
+		m.NegativeSpans = f0
+		m.NegativeDeltas = f1
+		m.NegativeCounts = f2
+		m.PositiveSpans = f3
+		m.PositiveDeltas = f4
+		m.PositiveCounts = f5
+	}
+}
+func (m *Histogram) ReturnToVTPool() {
+	if m != nil {
+		m.ResetVT()
+		vtprotoPool_Histogram.Put(m)
+	}
+}
+func HistogramFromVTPool() *Histogram {
+	return vtprotoPool_Histogram.Get().(*Histogram)
+}
+
+var vtprotoPool_BucketSpan = sync.Pool{
+	New: func() interface{} {
+		return &BucketSpan{}
+	},
+}
+
+func (m *BucketSpan) ResetVT() {
+	if m != nil {
+		m.Reset()
+	}
+}
+func (m *BucketSpan) ReturnToVTPool() {
+	if m != nil {
+		m.ResetVT()
+		vtprotoPool_BucketSpan.Put(m)
+	}
+}
+func BucketSpanFromVTPool() *BucketSpan {
+	return vtprotoPool_BucketSpan.Get().(*BucketSpan)
+}
+
+var vtprotoPool_TimeSeries = sync.Pool{
+	New: func() interface{} {
+		return &TimeSeries{}
+	},
+}
+
+func (m *TimeSeries) ResetVT() {
+	if m != nil {
+		for _, mm := range m.Labels {
+			mm.ResetVT()
+		}
+		f0 := m.Labels[:0]
+		for _, mm := range m.Samples {
+			mm.ResetVT()
+		}
+		f1 := m.Samples[:0]
+		for _, mm := range m.Exemplars {
+			mm.ResetVT()
+		}
+		f2 := m.Exemplars[:0]
+		for _, mm := range m.Histograms {
+			mm.ResetVT()
+		}
+		f3 := m.Histograms[:0]
+		m.Reset()
+		m.Labels = f0
+		m.Samples = f1
+		m.Exemplars = f2
+		m.Histograms = f3
+	}
+}
+func (m *TimeSeries) ReturnToVTPool() {
+	if m != nil {
+		m.ResetVT()
+		vtprotoPool_TimeSeries.Put(m)
+	}
+}
+func TimeSeriesFromVTPool() *TimeSeries {
+	return vtprotoPool_TimeSeries.Get().(*TimeSeries)
+}
+
+var vtprotoPool_Label = sync.Pool{
+	New: func() interface{} {
+		return &Label{}
+	},
+}
+
+func (m *Label) ResetVT() {
+	if m != nil {
+		m.Reset()
+	}
+}
+func (m *Label) ReturnToVTPool() {
+	if m != nil {
+		m.ResetVT()
+		vtprotoPool_Label.Put(m)
+	}
+}
+func LabelFromVTPool() *Label {
+	return vtprotoPool_Label.Get().(*Label)
+}
 func (m *MetricMetadata) SizeVT() (n int) {
 	if m == nil {
 		return 0
@@ -3298,7 +3488,14 @@ func (m *Exemplar) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Labels = append(m.Labels, &Label{})
+			if len(m.Labels) == cap(m.Labels) {
+				m.Labels = append(m.Labels, &Label{})
+			} else {
+				m.Labels = m.Labels[:len(m.Labels)+1]
+				if m.Labels[len(m.Labels)-1] == nil {
+					m.Labels[len(m.Labels)-1] = &Label{}
+				}
+			}
 			if err := m.Labels[len(m.Labels)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -3518,7 +3715,14 @@ func (m *Histogram) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.NegativeSpans = append(m.NegativeSpans, &BucketSpan{})
+			if len(m.NegativeSpans) == cap(m.NegativeSpans) {
+				m.NegativeSpans = append(m.NegativeSpans, &BucketSpan{})
+			} else {
+				m.NegativeSpans = m.NegativeSpans[:len(m.NegativeSpans)+1]
+				if m.NegativeSpans[len(m.NegativeSpans)-1] == nil {
+					m.NegativeSpans[len(m.NegativeSpans)-1] = &BucketSpan{}
+				}
+			}
 			if err := m.NegativeSpans[len(m.NegativeSpans)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -3576,7 +3780,7 @@ func (m *Histogram) UnmarshalVT(dAtA []byte) error {
 					}
 				}
 				elementCount = count
-				if elementCount != 0 && len(m.NegativeDeltas) == 0 {
+				if elementCount != 0 && len(m.NegativeDeltas) == 0 && cap(m.NegativeDeltas) < elementCount {
 					m.NegativeDeltas = make([]int64, 0, elementCount)
 				}
 				for iNdEx < postIndex {
@@ -3639,7 +3843,7 @@ func (m *Histogram) UnmarshalVT(dAtA []byte) error {
 				}
 				var elementCount int
 				elementCount = packedLen / 8
-				if elementCount != 0 && len(m.NegativeCounts) == 0 {
+				if elementCount != 0 && len(m.NegativeCounts) == 0 && cap(m.NegativeCounts) < elementCount {
 					m.NegativeCounts = make([]float64, 0, elementCount)
 				}
 				for iNdEx < postIndex {
@@ -3684,7 +3888,14 @@ func (m *Histogram) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.PositiveSpans = append(m.PositiveSpans, &BucketSpan{})
+			if len(m.PositiveSpans) == cap(m.PositiveSpans) {
+				m.PositiveSpans = append(m.PositiveSpans, &BucketSpan{})
+			} else {
+				m.PositiveSpans = m.PositiveSpans[:len(m.PositiveSpans)+1]
+				if m.PositiveSpans[len(m.PositiveSpans)-1] == nil {
+					m.PositiveSpans[len(m.PositiveSpans)-1] = &BucketSpan{}
+				}
+			}
 			if err := m.PositiveSpans[len(m.PositiveSpans)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -3742,7 +3953,7 @@ func (m *Histogram) UnmarshalVT(dAtA []byte) error {
 					}
 				}
 				elementCount = count
-				if elementCount != 0 && len(m.PositiveDeltas) == 0 {
+				if elementCount != 0 && len(m.PositiveDeltas) == 0 && cap(m.PositiveDeltas) < elementCount {
 					m.PositiveDeltas = make([]int64, 0, elementCount)
 				}
 				for iNdEx < postIndex {
@@ -3805,7 +4016,7 @@ func (m *Histogram) UnmarshalVT(dAtA []byte) error {
 				}
 				var elementCount int
 				elementCount = packedLen / 8
-				if elementCount != 0 && len(m.PositiveCounts) == 0 {
+				if elementCount != 0 && len(m.PositiveCounts) == 0 && cap(m.PositiveCounts) < elementCount {
 					m.PositiveCounts = make([]float64, 0, elementCount)
 				}
 				for iNdEx < postIndex {
@@ -4030,7 +4241,14 @@ func (m *TimeSeries) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Labels = append(m.Labels, &Label{})
+			if len(m.Labels) == cap(m.Labels) {
+				m.Labels = append(m.Labels, &Label{})
+			} else {
+				m.Labels = m.Labels[:len(m.Labels)+1]
+				if m.Labels[len(m.Labels)-1] == nil {
+					m.Labels[len(m.Labels)-1] = &Label{}
+				}
+			}
 			if err := m.Labels[len(m.Labels)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -4064,7 +4282,14 @@ func (m *TimeSeries) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Samples = append(m.Samples, &Sample{})
+			if len(m.Samples) == cap(m.Samples) {
+				m.Samples = append(m.Samples, &Sample{})
+			} else {
+				m.Samples = m.Samples[:len(m.Samples)+1]
+				if m.Samples[len(m.Samples)-1] == nil {
+					m.Samples[len(m.Samples)-1] = &Sample{}
+				}
+			}
 			if err := m.Samples[len(m.Samples)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -4098,7 +4323,14 @@ func (m *TimeSeries) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Exemplars = append(m.Exemplars, &Exemplar{})
+			if len(m.Exemplars) == cap(m.Exemplars) {
+				m.Exemplars = append(m.Exemplars, &Exemplar{})
+			} else {
+				m.Exemplars = m.Exemplars[:len(m.Exemplars)+1]
+				if m.Exemplars[len(m.Exemplars)-1] == nil {
+					m.Exemplars[len(m.Exemplars)-1] = &Exemplar{}
+				}
+			}
 			if err := m.Exemplars[len(m.Exemplars)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -4132,7 +4364,14 @@ func (m *TimeSeries) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Histograms = append(m.Histograms, &Histogram{})
+			if len(m.Histograms) == cap(m.Histograms) {
+				m.Histograms = append(m.Histograms, &Histogram{})
+			} else {
+				m.Histograms = m.Histograms[:len(m.Histograms)+1]
+				if m.Histograms[len(m.Histograms)-1] == nil {
+					m.Histograms[len(m.Histograms)-1] = &Histogram{}
+				}
+			}
 			if err := m.Histograms[len(m.Histograms)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -5282,7 +5521,14 @@ func (m *Exemplar) UnmarshalVTUnsafe(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Labels = append(m.Labels, &Label{})
+			if len(m.Labels) == cap(m.Labels) {
+				m.Labels = append(m.Labels, &Label{})
+			} else {
+				m.Labels = m.Labels[:len(m.Labels)+1]
+				if m.Labels[len(m.Labels)-1] == nil {
+					m.Labels[len(m.Labels)-1] = &Label{}
+				}
+			}
 			if err := m.Labels[len(m.Labels)-1].UnmarshalVTUnsafe(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -5502,7 +5748,14 @@ func (m *Histogram) UnmarshalVTUnsafe(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.NegativeSpans = append(m.NegativeSpans, &BucketSpan{})
+			if len(m.NegativeSpans) == cap(m.NegativeSpans) {
+				m.NegativeSpans = append(m.NegativeSpans, &BucketSpan{})
+			} else {
+				m.NegativeSpans = m.NegativeSpans[:len(m.NegativeSpans)+1]
+				if m.NegativeSpans[len(m.NegativeSpans)-1] == nil {
+					m.NegativeSpans[len(m.NegativeSpans)-1] = &BucketSpan{}
+				}
+			}
 			if err := m.NegativeSpans[len(m.NegativeSpans)-1].UnmarshalVTUnsafe(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -5560,7 +5813,7 @@ func (m *Histogram) UnmarshalVTUnsafe(dAtA []byte) error {
 					}
 				}
 				elementCount = count
-				if elementCount != 0 && len(m.NegativeDeltas) == 0 {
+				if elementCount != 0 && len(m.NegativeDeltas) == 0 && cap(m.NegativeDeltas) < elementCount {
 					m.NegativeDeltas = make([]int64, 0, elementCount)
 				}
 				for iNdEx < postIndex {
@@ -5623,7 +5876,7 @@ func (m *Histogram) UnmarshalVTUnsafe(dAtA []byte) error {
 				}
 				var elementCount int
 				elementCount = packedLen / 8
-				if elementCount != 0 && len(m.NegativeCounts) == 0 {
+				if elementCount != 0 && len(m.NegativeCounts) == 0 && cap(m.NegativeCounts) < elementCount {
 					m.NegativeCounts = make([]float64, 0, elementCount)
 				}
 				for iNdEx < postIndex {
@@ -5668,7 +5921,14 @@ func (m *Histogram) UnmarshalVTUnsafe(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.PositiveSpans = append(m.PositiveSpans, &BucketSpan{})
+			if len(m.PositiveSpans) == cap(m.PositiveSpans) {
+				m.PositiveSpans = append(m.PositiveSpans, &BucketSpan{})
+			} else {
+				m.PositiveSpans = m.PositiveSpans[:len(m.PositiveSpans)+1]
+				if m.PositiveSpans[len(m.PositiveSpans)-1] == nil {
+					m.PositiveSpans[len(m.PositiveSpans)-1] = &BucketSpan{}
+				}
+			}
 			if err := m.PositiveSpans[len(m.PositiveSpans)-1].UnmarshalVTUnsafe(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -5726,7 +5986,7 @@ func (m *Histogram) UnmarshalVTUnsafe(dAtA []byte) error {
 					}
 				}
 				elementCount = count
-				if elementCount != 0 && len(m.PositiveDeltas) == 0 {
+				if elementCount != 0 && len(m.PositiveDeltas) == 0 && cap(m.PositiveDeltas) < elementCount {
 					m.PositiveDeltas = make([]int64, 0, elementCount)
 				}
 				for iNdEx < postIndex {
@@ -5789,7 +6049,7 @@ func (m *Histogram) UnmarshalVTUnsafe(dAtA []byte) error {
 				}
 				var elementCount int
 				elementCount = packedLen / 8
-				if elementCount != 0 && len(m.PositiveCounts) == 0 {
+				if elementCount != 0 && len(m.PositiveCounts) == 0 && cap(m.PositiveCounts) < elementCount {
 					m.PositiveCounts = make([]float64, 0, elementCount)
 				}
 				for iNdEx < postIndex {
@@ -6014,7 +6274,14 @@ func (m *TimeSeries) UnmarshalVTUnsafe(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Labels = append(m.Labels, &Label{})
+			if len(m.Labels) == cap(m.Labels) {
+				m.Labels = append(m.Labels, &Label{})
+			} else {
+				m.Labels = m.Labels[:len(m.Labels)+1]
+				if m.Labels[len(m.Labels)-1] == nil {
+					m.Labels[len(m.Labels)-1] = &Label{}
+				}
+			}
 			if err := m.Labels[len(m.Labels)-1].UnmarshalVTUnsafe(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -6048,7 +6315,14 @@ func (m *TimeSeries) UnmarshalVTUnsafe(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Samples = append(m.Samples, &Sample{})
+			if len(m.Samples) == cap(m.Samples) {
+				m.Samples = append(m.Samples, &Sample{})
+			} else {
+				m.Samples = m.Samples[:len(m.Samples)+1]
+				if m.Samples[len(m.Samples)-1] == nil {
+					m.Samples[len(m.Samples)-1] = &Sample{}
+				}
+			}
 			if err := m.Samples[len(m.Samples)-1].UnmarshalVTUnsafe(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -6082,7 +6356,14 @@ func (m *TimeSeries) UnmarshalVTUnsafe(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Exemplars = append(m.Exemplars, &Exemplar{})
+			if len(m.Exemplars) == cap(m.Exemplars) {
+				m.Exemplars = append(m.Exemplars, &Exemplar{})
+			} else {
+				m.Exemplars = m.Exemplars[:len(m.Exemplars)+1]
+				if m.Exemplars[len(m.Exemplars)-1] == nil {
+					m.Exemplars[len(m.Exemplars)-1] = &Exemplar{}
+				}
+			}
 			if err := m.Exemplars[len(m.Exemplars)-1].UnmarshalVTUnsafe(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -6116,7 +6397,14 @@ func (m *TimeSeries) UnmarshalVTUnsafe(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Histograms = append(m.Histograms, &Histogram{})
+			if len(m.Histograms) == cap(m.Histograms) {
+				m.Histograms = append(m.Histograms, &Histogram{})
+			} else {
+				m.Histograms = m.Histograms[:len(m.Histograms)+1]
+				if m.Histograms[len(m.Histograms)-1] == nil {
+					m.Histograms[len(m.Histograms)-1] = &Histogram{}
+				}
+			}
 			if err := m.Histograms[len(m.Histograms)-1].UnmarshalVTUnsafe(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
