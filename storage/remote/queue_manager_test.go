@@ -28,12 +28,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/log"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/client_golang/prometheus"
 	client_testutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/promslog"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 
@@ -1428,8 +1428,7 @@ func BenchmarkStartup(b *testing.B) {
 	}
 	sort.Ints(segments)
 
-	logger := log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
-	logger = log.With(logger, "caller", log.DefaultCaller)
+	logger := promslog.New(&promslog.Config{})
 
 	cfg := testDefaultQueueConfig()
 	mcfg := config.DefaultMetadataConfig
@@ -1863,7 +1862,7 @@ func createDummyTimeSeries(instances int) []timeSeries {
 }
 
 func BenchmarkBuildWriteRequest(b *testing.B) {
-	noopLogger := log.NewNopLogger()
+	noopLogger := promslog.NewNopLogger()
 	bench := func(b *testing.B, batch []timeSeries) {
 		buff := make([]byte, 0)
 		seriesBuff := make([]*prompb.TimeSeries, len(batch))
@@ -1904,7 +1903,7 @@ func BenchmarkBuildWriteRequest(b *testing.B) {
 }
 
 func BenchmarkBuildV2WriteRequest(b *testing.B) {
-	noopLogger := log.NewNopLogger()
+	noopLogger := promslog.NewNopLogger()
 	bench := func(b *testing.B, batch []timeSeries) {
 		symbolTable := writev2.NewSymbolTable()
 		buff := make([]byte, 0)
